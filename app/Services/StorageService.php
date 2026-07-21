@@ -5,12 +5,23 @@ namespace App\Services;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class StorageService
 {
     /**
+     * Get the configured storage disk name.
+     */
+    protected function disk(): string
+    {
+        return config('filesystems.default', 'local');
+    }
+
+    /**
      * Upload a PDF file to structured storage path.
      * Path format: surat_masuk/{year}/{month}/{unique_filename}.pdf
+     *
+     * Supports both local disk and S3/MinIO.
      */
     public function uploadPdf(UploadedFile $file, ?string $year = null, ?string $month = null): array
     {
@@ -21,8 +32,13 @@ class StorageService
         $uniqueName = Str::uuid() . '.pdf';
         $path = "surat_masuk/{$year}/{$month}/{$uniqueName}";
 
-        $disk = config('filesystems.default', 'local');
-        Storage::disk($disk)->put($path, file_get_contents($file));
+        Storage::disk($this->disk())->put($path, file_get_contents($file));
+
+        Log::info('PDF uploaded to storage', [
+            'disk' => $this->disk(),
+            'path' => $path,
+            'original_name' => $originalName,
+        ]);
 
         return [
             'file_path' => $path,
@@ -35,13 +51,26 @@ class StorageService
      */
     public function getFile(string $path): ?string
     {
-        $disk = config('filesystems.default', 'local');
-
-        if (!Storage::disk($disk)->exists($path)) {
+        if (!Storage::disk($this->disk())->exists($path)) {
             return null;
         }
 
-        return Storage::disk($disk)->get($path);
+        return Storage::disk($this->disk())->get($path);
+    }
+
+    /**
+     * Get a readable stream for the file.
+     * More memory-efficient than getFile() for large PDFs.
+     *
+     * @return resource|null
+     */
+    public function streamFile(string $path)
+    {
+        if (!Storage::disk($this->disk())->exists($path)) {
+            return null;
+        }
+
+        return Storage::disk($this->disk())->readStream($path);
     }
 
     /**
@@ -49,10 +78,16 @@ class StorageService
      */
     public function deleteFile(string $path): bool
     {
-        $disk = config('filesystems.default', 'local');
+        if (Storage::disk($this->disk())->exists($path)) {
+            $deleted = Storage::disk($this->disk())->delete($path);
 
-        if (Storage::disk($disk)->exists($path)) {
-            return Storage::disk($disk)->delete($path);
+            Log::info('File deleted from storage', [
+                'disk' => $this->disk(),
+                'path' => $path,
+                'success' => $deleted,
+            ]);
+
+            return $deleted;
         }
 
         return false;
@@ -63,16 +98,47 @@ class StorageService
      */
     public function fileExists(string $path): bool
     {
-        $disk = config('filesystems.default', 'local');
-        return Storage::disk($disk)->exists($path);
+        return Storage::disk($this->disk())->exists($path);
     }
 
     /**
-     * Get full path for streaming.
+     * Get a temporary (pre-signed) URL for direct access to the file.
+     * Only works with S3/MinIO disk. Falls back to null for local disk.
      */
-    public function getFullPath(string $path): string
+    public function getTemporaryUrl(string $path, int $minutes = 30): ?string
     {
-        $disk = config('filesystems.default', 'local');
-        return Storage::disk($disk)->path($path);
+        if ($this->disk() !== 's3') {
+            return null;
+        }
+
+        if (!Storage::disk($this->disk())->exists($path)) {
+            return null;
+        }
+
+        try {
+            return Storage::disk($this->disk())->temporaryUrl(
+                $path,
+                now()->addMinutes($minutes)
+            );
+        } catch (\Exception $e) {
+            Log::warning('Failed to generate temporary URL', [
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Get the public URL for a file.
+     * For S3/MinIO, returns the configured URL. For local, returns null.
+     */
+    public function getUrl(string $path): ?string
+    {
+        try {
+            return Storage::disk($this->disk())->url($path);
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 }

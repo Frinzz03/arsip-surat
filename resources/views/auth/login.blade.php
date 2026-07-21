@@ -49,11 +49,12 @@
                 <span class="ms-2 text-sm text-slate-600 hover:text-slate-900 transition-colors">{{ __('Remember me') }}</span>
             </label>
 
-            @if (Route::has('password.request'))
+            {{-- Forgot Password dinonaktifkan --}}
+            {{-- @if (Route::has('password.request'))
                 <a class="text-sm font-medium text-sky-600 hover:text-sky-500 transition-colors" href="{{ route('password.request') }}">
                     {{ __('Forgot password?') }}
                 </a>
-            @endif
+            @endif --}}
         </div>
 
         <div>
