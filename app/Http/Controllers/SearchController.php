@@ -28,7 +28,7 @@ class SearchController extends Controller
     public function search(Request $request)
     {
         $params = $request->only([
-            'pengirim', 'tanggal_dari',
+            'no_agenda', 'pengirim', 'tanggal_dari',
             'tanggal_sampai', 'sifat', 'keyword'
         ]);
 

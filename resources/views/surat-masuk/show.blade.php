@@ -61,7 +61,7 @@
                             </div>
                             <div>
                                 <p class="text-xs font-semibold uppercase text-slate-500">Tanggal Diterima</p>
-                                <p class="text-sm font-medium mt-1">{{ $suratMasuk->tanggal_masuk->format('d/m/Y') }}</p>
+                                <p class="text-sm font-medium mt-1">{{ $suratMasuk->tanggal_masuk?->format('d/m/Y') ?? '-' }}</p>
                             </div>
                         </div>
                         <div>

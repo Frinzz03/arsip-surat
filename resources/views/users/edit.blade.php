@@ -12,7 +12,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('users.update', $user) }}">
+        <form method="POST" action="{{ route('users.update', $user) }}" onsubmit="if(document.querySelector('input[name=\'role\']:checked').value === 'admin' && '{{ $user->role }}' !== 'admin') { return confirm('Apakah anda yakin untuk mengubah user ini menjadi admin?'); }">
             @csrf
             @method('PUT')
             

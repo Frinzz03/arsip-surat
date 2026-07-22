@@ -43,8 +43,8 @@
                     <div>
                         <label class="form-label">Format File</label>
                         <select name="format" class="form-select">
+                            <option value="xlsx" selected>XLSX (Microsoft Excel)</option>
                             <option value="csv">CSV (Comma Separated Values)</option>
-                            <option value="xlsx">XLSX (Microsoft Excel)</option>
                         </select>
                     </div>
                     <button type="submit" class="btn-primary w-full mt-2">

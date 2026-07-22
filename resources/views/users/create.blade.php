@@ -12,7 +12,7 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('users.store') }}">
+        <form method="POST" action="{{ route('users.store') }}" onsubmit="if(document.querySelector('input[name=\'role\']:checked').value === 'admin') { return confirm('Apakah anda yakin untuk menambah admin baru?'); }">
             @csrf
             
             <div class="glass-card p-6 space-y-6">
@@ -42,15 +42,15 @@
                 <div>
                     <label class="form-label">Role Akses <span class="text-red-500">*</span></label>
                     <div class="grid grid-cols-2 gap-4 mt-2">
-                        <label class="relative flex cursor-pointer rounded-lg border bg-white dark:bg-slate-800 p-4 shadow-sm focus:outline-none {{ old('role') == 'staf' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-slate-300 dark:border-slate-600' }}">
-                            <input type="radio" name="role" value="staf" class="sr-only" required {{ old('role') == 'staf' ? 'checked' : '' }} onchange="this.closest('.grid').querySelectorAll('label').forEach(l => l.classList.remove('border-sky-500', 'ring-1', 'ring-sky-500')); this.parentNode.classList.add('border-sky-500', 'ring-1', 'ring-sky-500');">
+                        <label class="relative flex cursor-pointer rounded-lg border bg-white dark:bg-slate-800 p-4 shadow-sm focus:outline-none {{ old('role', 'staf') == 'staf' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-slate-300 dark:border-slate-600' }}">
+                            <input type="radio" name="role" value="staf" class="sr-only" required {{ old('role', 'staf') == 'staf' ? 'checked' : '' }} onchange="this.closest('.grid').querySelectorAll('label').forEach(l => l.classList.remove('border-sky-500', 'ring-1', 'ring-sky-500')); this.parentNode.classList.add('border-sky-500', 'ring-1', 'ring-sky-500');">
                             <span class="flex flex-1">
                                 <span class="flex flex-col">
                                     <span class="block text-sm font-medium text-slate-900 dark:text-white">Staf</span>
                                     <span class="mt-1 flex items-center text-xs text-slate-500">Akses entry dan pencarian data biasa.</span>
                                 </span>
                             </span>
-                            <svg class="h-5 w-5 text-sky-600 {{ old('role') == 'staf' ? 'block' : 'hidden' }}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                            <svg class="h-5 w-5 text-sky-600 {{ old('role', 'staf') == 'staf' ? 'block' : 'hidden' }}" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
                         </label>
                         
                         <label class="relative flex cursor-pointer rounded-lg border bg-white dark:bg-slate-800 p-4 shadow-sm focus:outline-none {{ old('role') == 'admin' ? 'border-sky-500 ring-1 ring-sky-500' : 'border-slate-300 dark:border-slate-600' }}">

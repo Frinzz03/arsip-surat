@@ -6,18 +6,18 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 use App\Models\SuratMasuk;
 
-class MigrateToMinio extends Command
+class MigrateToR2 extends Command
 {
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'storage:migrate-to-minio
+    protected $signature = 'storage:migrate-to-r2
                             {--dry-run : Tampilkan file yang akan dimigrasi tanpa memindahkan}';
 
     /**
      * The console command description.
      */
-    protected $description = 'Migrasi file PDF surat masuk dari penyimpanan lokal ke MinIO (S3)';
+    protected $description = 'Migrasi file PDF surat masuk dari penyimpanan lokal ke Cloudflare R2';
 
     /**
      * Execute the console command.
@@ -26,24 +26,24 @@ class MigrateToMinio extends Command
     {
         $dryRun = $this->option('dry-run');
 
-        // Verify S3/MinIO configuration
-        $s3Config = config('filesystems.disks.s3');
-        if (empty($s3Config['endpoint']) || empty($s3Config['bucket'])) {
-            $this->error('Konfigurasi S3/MinIO belum lengkap. Periksa file .env.');
+        // Verify R2 configuration
+        $r2Config = config('filesystems.disks.r2');
+        if (empty($r2Config['endpoint']) || empty($r2Config['bucket'])) {
+            $this->error('Konfigurasi Cloudflare R2 belum lengkap. Periksa file .env.');
             return Command::FAILURE;
         }
 
-        $this->info("MinIO Endpoint: {$s3Config['endpoint']}");
-        $this->info("Bucket: {$s3Config['bucket']}");
+        $this->info("R2 Endpoint: {$r2Config['endpoint']}");
+        $this->info("Bucket: {$r2Config['bucket']}");
         $this->newLine();
 
-        // Test S3 connection
+        // Test R2 connection
         if (!$dryRun) {
             try {
-                Storage::disk('s3')->directories('/');
-                $this->info('✓ Koneksi ke MinIO berhasil.');
+                Storage::disk('r2')->directories('/');
+                $this->info('✓ Koneksi ke Cloudflare R2 berhasil.');
             } catch (\Exception $e) {
-                $this->error('✗ Gagal koneksi ke MinIO: ' . $e->getMessage());
+                $this->error('✗ Gagal koneksi ke Cloudflare R2: ' . $e->getMessage());
                 return Command::FAILURE;
             }
         }
@@ -71,9 +71,9 @@ class MigrateToMinio extends Command
         foreach ($suratList as $surat) {
             $path = $surat->file_path;
 
-            // Check if already exists in MinIO
+            // Check if already exists in R2
             try {
-                if (Storage::disk('s3')->exists($path)) {
+                if (Storage::disk('r2')->exists($path)) {
                     $skipped++;
                     $bar->advance();
                     continue;
@@ -99,10 +99,10 @@ class MigrateToMinio extends Command
                 continue;
             }
 
-            // Migrate: read from local, write to S3
+            // Migrate: read from local, write to R2
             try {
                 $content = Storage::disk('local')->get($path);
-                Storage::disk('s3')->put($path, $content);
+                Storage::disk('r2')->put($path, $content);
                 $migrated++;
             } catch (\Exception $e) {
                 $this->newLine();
@@ -118,11 +118,11 @@ class MigrateToMinio extends Command
 
         // Summary
         $this->info('═══ Ringkasan Migrasi ═══');
-        $this->info("  Berhasil dimigrasi : {$migrated}");
-        $this->info("  Sudah ada di MinIO : {$skipped}");
+        $this->info("  Berhasil dimigrasi  : {$migrated}");
+        $this->info("  Sudah ada di R2     : {$skipped}");
 
         if ($failed > 0) {
-            $this->warn("  Gagal              : {$failed}");
+            $this->warn("  Gagal               : {$failed}");
         }
 
         if ($dryRun) {

@@ -38,6 +38,13 @@ class UserManagementController extends Controller
             'role' => 'required|in:admin,staf',
         ]);
 
+        if ($validated['role'] === 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount >= 3) {
+                return redirect()->back()->withInput()->with('error', 'Gagal menambahkan admin baru. Maksimal hanya boleh ada 3 Admin dalam sistem.');
+            }
+        }
+
         User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
@@ -69,6 +76,13 @@ class UserManagementController extends Controller
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:admin,staf',
         ]);
+
+        if ($validated['role'] === 'admin' && $user->role !== 'admin') {
+            $adminCount = User::where('role', 'admin')->count();
+            if ($adminCount >= 3) {
+                return redirect()->back()->withInput()->with('error', 'Gagal mengubah role menjadi admin. Maksimal hanya boleh ada 3 Admin dalam sistem.');
+            }
+        }
 
         $user->name = $validated['name'];
         $user->email = $validated['email'];

@@ -209,65 +209,122 @@ class CsvController extends Controller
      */
     private function parseDate($value): ?string
     {
-        if (empty($value) || trim((string) $value) === '' || trim((string) $value) === '-') {
+        if ($value === null || $value === '' || $value === false) {
             return null;
         }
 
         $dateStr = trim((string) $value);
 
-        // Handle Excel serial date numbers (e.g., 44927 = 2023-01-01)
-        if (is_numeric($dateStr) && (int) $dateStr > 30000 && (int) $dateStr < 60000) {
-            try {
-                $unix = ((int) $dateStr - 25569) * 86400;
-                return date('Y-m-d', $unix);
-            } catch (\Exception $e) {
-                // Fall through
+        if ($dateStr === '' || $dateStr === '-' || $dateStr === '0') {
+            return null;
+        }
+
+        // 1. Handle Excel serial date numbers (e.g., 44927 = 2023-01-01)
+        //    Excel dates range roughly from 1 (1900-01-01) to ~73000 (2099-12-31)
+        if (is_numeric($dateStr)) {
+            $num = (float) $dateStr;
+            if ($num > 1 && $num < 73000) {
+                try {
+                    // Excel epoch: 1899-12-30 (accounting for Excel's leap year bug)
+                    $unix = ($num - 25569) * 86400;
+                    $result = date('Y-m-d', (int) $unix);
+                    // Validate the result is a sane date
+                    $year = (int) date('Y', (int) $unix);
+                    if ($year >= 1990 && $year <= 2099) {
+                        return $result;
+                    }
+                } catch (\Exception $e) {
+                    // Fall through
+                }
             }
         }
 
-        $dateStrLower = strtolower($dateStr);
-
-        // Handle Indonesian month names (e.g., "1 Januari 2026")
+        // 2. Handle Indonesian month names with regex (e.g., "1 Januari 2026", "15 Mei 2025")
         $bulanIndo = [
-            'januari' => '01', 'februari' => '02', 'maret' => '03',
-            'april' => '04', 'mei' => '05', 'juni' => '06',
-            'juli' => '07', 'agustus' => '08', 'september' => '09',
-            'oktober' => '10', 'november' => '11', 'desember' => '12',
+            'januari' => 1, 'februari' => 2, 'maret' => 3,
+            'april' => 4, 'mei' => 5, 'juni' => 6,
+            'juli' => 7, 'agustus' => 8, 'september' => 9,
+            'oktober' => 10, 'november' => 11, 'desember' => 12,
+            // Abbreviated
+            'jan' => 1, 'feb' => 2, 'mar' => 3,
+            'apr' => 4, 'jun' => 6, 'jul' => 7,
+            'agu' => 8, 'ags' => 8, 'aug' => 8,
+            'sep' => 9, 'okt' => 10, 'oct' => 10,
+            'nov' => 11, 'des' => 12, 'dec' => 12,
         ];
 
-        foreach ($bulanIndo as $indo => $num) {
-            if (strpos($dateStrLower, $indo) !== false) {
-                $dateStrLower = str_replace($indo, "-{$num}-", $dateStrLower);
-                $dateStrLower = str_replace(' ', '', $dateStrLower);
-                $dateStrLower = str_replace('--', '-', $dateStrLower);
-                $dateStrLower = trim($dateStrLower, '-');
-                break;
+        $dateStrLower = strtolower($dateStr);
+        foreach ($bulanIndo as $name => $monthNum) {
+            if (preg_match('/(\d{1,2})[\s\-\/]+' . preg_quote($name, '/') . '[\s\-\/]+(\d{2,4})/i', $dateStrLower, $m)) {
+                $y = (int) $m[2];
+                if ($y < 100) $y += 2000;
+                return sprintf('%04d-%02d-%02d', $y, $monthNum, (int) $m[1]);
+            }
+        }
+
+        // 3. Handle English month names (e.g., "January 1, 2026", "1 March 2026")
+        $bulanEng = [
+            'january' => 1, 'february' => 2, 'march' => 3,
+            'april' => 4, 'may' => 5, 'june' => 6,
+            'july' => 7, 'august' => 8, 'september' => 9,
+            'october' => 10, 'november' => 11, 'december' => 12,
+        ];
+
+        foreach ($bulanEng as $name => $monthNum) {
+            // "1 March 2026" or "01-Mar-26" format
+            if (preg_match('/(\d{1,2})[\s\-\/]+' . preg_quote($name, '/') . '[\s\-\/]+(\d{2,4})/i', $dateStrLower, $m)) {
+                $y = (int) $m[2];
+                if ($y < 100) $y += 2000;
+                return sprintf('%04d-%02d-%02d', $y, $monthNum, (int) $m[1]);
+            }
+            // "March 1, 2026" format
+            if (preg_match('/' . preg_quote($name, '/') . '[\s\-\/]+(\d{1,2}),?[\s\-\/]+(\d{2,4})/i', $dateStrLower, $m)) {
+                $y = (int) $m[2];
+                if ($y < 100) $y += 2000;
+                return sprintf('%04d-%02d-%02d', $y, $monthNum, (int) $m[1]);
             }
         }
 
         try {
-            // Handle d/m/Y format
-            if (strpos($dateStrLower, '/') !== false) {
-                $parts = explode('/', $dateStrLower);
+            // 4. Handle d/m/Y or m/d/Y format
+            if (strpos($dateStr, '/') !== false) {
+                $parts = explode('/', $dateStr);
                 if (count($parts) === 3) {
-                    return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
+                    $a = (int) $parts[0];
+                    $b = (int) $parts[1];
+                    $c = (int) $parts[2];
+
+                    // If third part is 4 digits → d/m/Y
+                    if ($c > 100) {
+                        return sprintf('%04d-%02d-%02d', $c, $b, $a);
+                    }
+                    // If first part is 4 digits → Y/m/d
+                    if ($a > 100) {
+                        return sprintf('%04d-%02d-%02d', $a, $b, $c);
+                    }
                 }
             }
 
-            // Handle d-m-Y or Y-m-d
-            if (strpos($dateStrLower, '-') !== false) {
-                $parts = explode('-', $dateStrLower);
+            // 5. Handle d-m-Y or Y-m-d format
+            if (strpos($dateStr, '-') !== false) {
+                $parts = explode('-', $dateStr);
                 if (count($parts) === 3) {
-                    // If first part is 4 digits, assume Y-m-d
                     if (strlen($parts[0]) === 4) {
                         return sprintf('%04d-%02d-%02d', (int) $parts[0], (int) $parts[1], (int) $parts[2]);
                     }
-                    // Otherwise assume d-m-Y
                     return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
                 }
             }
 
-            // Fallback: let Carbon try to parse
+            // 6. Handle d.m.Y format (common in some locales)
+            if (strpos($dateStr, '.') !== false) {
+                $parts = explode('.', $dateStr);
+                if (count($parts) === 3) {
+                    return sprintf('%04d-%02d-%02d', (int) $parts[2], (int) $parts[1], (int) $parts[0]);
+                }
+            }
+
+            // 7. Fallback: let Carbon try to parse
             return \Carbon\Carbon::parse($dateStr)->toDateString();
         } catch (\Exception $e) {
             return null;

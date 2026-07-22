@@ -74,7 +74,7 @@ class SuratMasukController extends Controller
             'waktu_acara' => 'nullable|string|max:50',
             'tempat_acara' => 'nullable|string|max:255',
             'penerima' => 'required|string|max:255',
-            'file_pdf' => 'nullable|file|mimes:pdf|max:10240', // Max 10MB
+            'file_pdf' => 'nullable|file|mimes:pdf|max:1024', // Max 1MB
         ]);
 
         $validated['uploaded_by'] = Auth::id();
@@ -133,7 +133,7 @@ class SuratMasukController extends Controller
             'waktu_acara' => 'nullable|string|max:50',
             'tempat_acara' => 'nullable|string|max:255',
             'penerima' => 'required|string|max:255',
-            'file_pdf' => 'nullable|file|mimes:pdf|max:10240',
+            'file_pdf' => 'nullable|file|mimes:pdf|max:1024', // Max 1MB
         ]);
 
 
@@ -180,7 +180,7 @@ class SuratMasukController extends Controller
     public function extractPdf(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|mimes:pdf|max:10240',
+            'file' => 'required|file|mimes:pdf|max:1024', // Max 1MB
         ]);
 
         $result = $this->pdfService->extractWithDetails($request->file('file'));

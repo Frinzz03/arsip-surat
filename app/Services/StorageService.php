@@ -21,7 +21,7 @@ class StorageService
      * Upload a PDF file to structured storage path.
      * Path format: surat_masuk/{year}/{month}/{unique_filename}.pdf
      *
-     * Supports both local disk and S3/MinIO.
+     * Supports both local disk and Cloudflare R2.
      */
     public function uploadPdf(UploadedFile $file, ?string $year = null, ?string $month = null): array
     {
@@ -103,11 +103,11 @@ class StorageService
 
     /**
      * Get a temporary (pre-signed) URL for direct access to the file.
-     * Only works with S3/MinIO disk. Falls back to null for local disk.
+     * Only works with Cloudflare R2 disk. Falls back to null for local disk.
      */
     public function getTemporaryUrl(string $path, int $minutes = 30): ?string
     {
-        if ($this->disk() !== 's3') {
+        if ($this->disk() !== 'r2') {
             return null;
         }
 
@@ -131,7 +131,7 @@ class StorageService
 
     /**
      * Get the public URL for a file.
-     * For S3/MinIO, returns the configured URL. For local, returns null.
+     * For Cloudflare R2, returns the configured URL. For local, returns null.
      */
     public function getUrl(string $path): ?string
     {
